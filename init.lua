@@ -174,7 +174,7 @@ local function smooth(pos1, pos2)
 	end
 	for x = 0, dim.x-1 do -- x- & averaging
 		local res = slice_x[x+1]
-		local last = heightmap[x + (dim.z-1 * hstride.z) + 1]
+		local last = heightmap[x + ((dim.z-1) * hstride.z) + 1]
 		res[dim.z] = (res[dim.z] + last) / 2
 		for z = dim.z-2, 0, -1 do
 			local h = heightmap[x + (z * hstride.z) + 1]
