@@ -167,9 +167,8 @@ local function smooth(pos1, pos2)
 	end
 
 	-- calculate EWMA for each x/z slice
-	-- TODO: calculate reverse and average to remove x+/z+ bias
 	local slice_x, slice_z = {}, {}
-	for x = 0, dim.x-1 do
+	for x = 0, dim.x-1 do -- x+
 		local res = {}
 		local last = heightmap[x + 1]
 		res[1] = last
@@ -180,7 +179,17 @@ local function smooth(pos1, pos2)
 		end
 		slice_x[x+1] = res
 	end
-	for z = 0, dim.z-1 do
+	for x = 0, dim.x-1 do -- x- & averaging
+		local res = slice_x[x+1]
+		local last = heightmap[x + (dim.z-1 * hstride.z) + 1]
+		res[dim.z] = (res[dim.z] + last) / 2
+		for z = dim.z-2, 0, -1 do
+			local h = heightmap[x + (z * hstride.z) + 1]
+			last = EWMA_alpha * h + (1 - EWMA_alpha) * last
+			res[z+1] = (res[z+1] + last) / 2
+		end
+	end
+	for z = 0, dim.z-1 do -- z+
 		local res = {}
 		local last = heightmap[(z * hstride.z) + 1]
 		res[1] = last
@@ -191,6 +200,16 @@ local function smooth(pos1, pos2)
 		end
 		slice_z[z+1] = res
 	end
+	for z = 0, dim.z-1 do -- z- & averaging
+		local res = slice_z[z+1]
+		local last = heightmap[dim.x-1 + (z * hstride.z) + 1]
+		res[dim.x] = (res[dim.x] + last) / 2
+		for x = dim.x-2, 0, -1 do
+			local h = heightmap[x + (z * hstride.z) + 1]
+			last = EWMA_alpha * h + (1 - EWMA_alpha) * last
+			res[x+1] = (res[x+1] + last) / 2
+		end
+	end
 
 	--[[print2d("heightmap", dim.x, dim.z, function(x, z)
 		return heightmap[x + (z * hstride.z) + 1]
@@ -200,7 +219,7 @@ local function smooth(pos1, pos2)
 	end)
 	print2d("ewma_z", dim.x, dim.z, function(x, z)
 		return slice_z[z+1][x+1]
-	end)--]]
+	end)]]
 
 	-- adjust actual heights based on results
 	local count = 0
