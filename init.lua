@@ -108,14 +108,7 @@ local function populate(pos1, pos2)
 	return count
 end
 
-local print2d = function(name, w, h, index) -- for debugging
-	local max = 1
-	for y = 0, h-1 do
-	for x = 0, w-1 do
-		max = math.max(max, index(x, y))
-	end
-	end
-	max = math.ceil(max)
+local print2d = function(name, w, h, max, index) -- for debugging
 	local s = "##" .. name .. "\n" .. w .. "," .. h .. ":"
 	for y = 0, h-1 do
 	for x = 0, w-1 do
@@ -127,8 +120,8 @@ local print2d = function(name, w, h, index) -- for debugging
 	print(s)
 end
 
-local EWMA_alpha = 0.6
-local WEIGHT = {orig=0.5, x=0.25, z=0.25}
+local EWMA_alpha = 0.45
+local WEIGHT = {orig=0.2, x=0.4, z=0.4}
 local function smooth(pos1, pos2)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
 	local dim = vector.add(vector.subtract(pos2, pos1), 1)
@@ -211,15 +204,15 @@ local function smooth(pos1, pos2)
 		end
 	end
 
-	--[[print2d("heightmap", dim.x, dim.z, function(x, z)
+	--[[print2d("heightmap", dim.x, dim.z, dim.y, function(x, z)
 		return heightmap[x + (z * hstride.z) + 1]
 	end)
-	print2d("ewma_x", dim.x, dim.z, function(x, z)
+	print2d("ewma_x", dim.x, dim.z, dim.y, function(x, z)
 		return slice_x[x+1][z+1]
 	end)
-	print2d("ewma_z", dim.x, dim.z, function(x, z)
+	print2d("ewma_z", dim.x, dim.z, dim.y, function(x, z)
 		return slice_z[z+1][x+1]
-	end)]]
+	end)--]]
 
 	-- adjust actual heights based on results
 	local count = 0
@@ -232,7 +225,8 @@ local function smooth(pos1, pos2)
 			local new_height = math.floor(
 				old_height * WEIGHT.orig +
 				slice_x[x+1][z+1] * WEIGHT.x +
-				slice_z[z+1][x+1] * WEIGHT.z
+				slice_z[z+1][x+1] * WEIGHT.z +
+				0.5
 			)
 
 			if old_height > new_height then
