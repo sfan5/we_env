@@ -23,3 +23,8 @@ Meaning: Add grass on top and change deeper nodes to stone.
 
 Smooth terrain (`default:dirt` only) in the current selection.
 This uses an exponentially weighted moving average (EWMA) and should be ran 1 or 2 times to produce good results.
+
+* `//smoothbrush`
+
+Assign terrain smoothing (see above) to a brush.
+Note that the brush will smooth a 10x10 area with heights up to 48 at once.
