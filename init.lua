@@ -122,7 +122,7 @@ end
 
 local EWMA_alpha = 0.45
 local WEIGHT = {orig=0.2, x=0.4, z=0.4}
-local function smooth(pos1, pos2)
+local function smooth(pos1, pos2, deadzone)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
 	local dim = vector.add(vector.subtract(pos2, pos1), 1)
 	if dim.x < 2 or dim.y < 2 or dim.z < 2 then return 0 end
@@ -221,6 +221,10 @@ local function smooth(pos1, pos2)
 		for z = 0, dim.z-1 do
 			local index_z = index_x + (offset.z + z) * stride.z
 
+			local noop = false
+			if x < deadzone.x or x > dim.x-1 - deadzone.x then noop = true end
+			if z < deadzone.z or z > dim.z-1 - deadzone.z then noop = true end
+
 			local old_height = heightmap[x + (z * hstride.z) + 1]
 			local new_height = math.floor(
 				old_height * WEIGHT.orig +
@@ -229,7 +233,9 @@ local function smooth(pos1, pos2)
 				0.5
 			)
 
-			if old_height > new_height then
+			if noop then
+				-- do nothing (deadzone)
+			elseif old_height > new_height then
 				-- need to delete nodes
 				local y = old_height-1
 				while y >= new_height do
@@ -301,7 +307,98 @@ minetest.register_chatcommand("/smooth", {
 			worldedit.player_notify(name, "no region selected")
 			return nil
 		end
-		local count = smooth(pos1, pos2)
+		local count = smooth(pos1, pos2, {x=0, z=0})
 		worldedit.player_notify(name, count .. " nodes updated")
+	end,
+})
+
+---------------------------------------------
+-- //smooth brush
+---------------------------------------------
+
+if minetest.registered_items["worldedit:brush"] == nil then
+	minetest.after(0, function()
+		minetest.log("error", "we_env: "..
+			"worldedit_brush not installed or enabled, "..
+			"brush functionality will be unavailable")
+	end)
+	return
+end
+
+local internal_name = "_smooth_brush_internal_do_not_use"
+minetest.register_chatcommand("/" .. internal_name, {
+	params = "",
+	privs = {worldedit=true},
+	func = function(name, param)
+		local pos = worldedit.pos1[name]
+		assert(pos ~= nil)
+
+		-- Only modify an 10*10 area but take heights from 14*14 into consideration
+		local dist, dead = 10, 4
+		dist = dist + dead
+		local pos1 = vector.apply(vector.subtract(pos, dist/2), math.floor)
+		local pos2 = vector.add(pos1, dist)
+
+		-- Expand region vertically to include lowest & highest nodes
+		local max_height = 48
+		max_height = math.floor(max_height / 2)
+		pos1.y = pos.y - max_height -- defaults
+		pos2.y = pos.y + max_height
+		for y = pos.y, pos.y - max_height, -1 do
+			local all_solid = false
+			for x = pos1.x, pos2.x do
+			for z = pos1.z, pos2.z do
+				if minetest.get_node({x=x, y=y, z=z}).name == "air" then
+					all_solid = false
+					break
+				end
+			end
+			end
+			if all_solid then
+				pos1.y = y
+				break
+			end
+		end
+		for y = pos.y, pos.y + max_height do
+			local all_nonsolid = true
+			for x = pos1.x, pos2.x do
+			for z = pos1.z, pos2.z do
+				if minetest.get_node({x=x, y=y, z=z}).name ~= "air" then
+					all_nonsolid = false
+					break
+				end
+			end
+			end
+			if all_nonsolid then
+				pos2.y = y
+				break
+			end
+		end
+
+		smooth(pos1, pos2, {x=dead, z=dead})
+		--[[worldedit.pos1[name] = pos1
+		worldedit.pos2[name] = pos2
+		worldedit.mark_region(name)--]]
+	end,
+})
+
+minetest.register_chatcommand("/smoothbrush", {
+	privs = {worldedit=true},
+	params = "",
+	description = "Assign smoothing action to WorldEdit brush item",
+	func = function(name, param)
+		local itemstack = minetest.get_player_by_name(name):get_wielded_item()
+		if itemstack == nil or itemstack:get_name() ~= "worldedit:brush" then
+			worldedit.player_notify(name, "Not holding brush item.")
+			return
+		end
+
+		local meta = itemstack:get_meta()
+		meta:set_string("command", internal_name)
+		meta:set_string("params", "")
+		meta:set_string("description",
+			minetest.registered_tools["worldedit:brush"].description .. ": Smooth")
+		worldedit.player_notify(name, "Smoothing action assigned to brush.")
+		minetest.get_player_by_name(name):set_wielded_item(itemstack)
 	end,
 })
