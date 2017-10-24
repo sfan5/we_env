@@ -345,7 +345,7 @@ minetest.register_chatcommand("/" .. internal_name, {
 		pos1.y = pos.y - max_height -- defaults
 		pos2.y = pos.y + max_height
 		for y = pos.y, pos.y - max_height, -1 do
-			local all_solid = false
+			local all_solid = true
 			for x = pos1.x, pos2.x do
 			for z = pos1.z, pos2.z do
 				if minetest.get_node({x=x, y=y, z=z}).name == "air" then
