@@ -6,8 +6,8 @@ local mh = worldedit.manip_helpers
 
 local function fall(pos1, pos2)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
-	local dim = vector.subtract(pos2, pos1) -- technically incorrect but cba to fix
-	if dim.y == 0 then return 0 end
+	local dim = vector.add(vector.subtract(pos2, pos1), 1)
+	if dim.y == 1 then return 0 end
 
 	local manip, area = mh.init(pos1, pos2)
 	local data = manip:get_data()
@@ -16,7 +16,7 @@ local function fall(pos1, pos2)
 	local stride = {x=1, y=area.ystride, z=area.zstride}
 	local offset = vector.subtract(pos1, area.MinEdge)
 	local c_air = minetest.get_content_id("air")
-	for x = 0, dim.x do
+	for x = 0, dim.x-1 do
 		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
 		for z = 0, dim.z do
 			local index_z = index_x + (offset.z + z) * stride.z
@@ -31,7 +31,7 @@ local function fall(pos1, pos2)
 					if ndef.groups.falling_node ~= nil and fall_height > 0 then
 						-- move all nodes above down by `fall_height`
 						-- FIXME: move meta & param2 too
-						for y2 = y, dim.y do
+						for y2 = y, dim.y-1 do
 							local index2 = index_z + (offset.y + y2) * stride.y
 							data[index2 - stride.y * fall_height] = data[index2]
 							data[index2] = c_air
@@ -62,7 +62,7 @@ end
 
 local function populate(pos1, pos2)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
-	local dim = vector.subtract(pos2, pos1) -- technically incorrect but cba to fix
+	local dim = vector.add(vector.subtract(pos2, pos1), 1)
 
 	local manip, area = mh.init(pos1, pos2)
 	local data = manip:get_data()
@@ -75,12 +75,12 @@ local function populate(pos1, pos2)
 	local c_dirt = minetest.get_content_id("default:dirt")
 	local c_grass = minetest.get_content_id("default:dirt_with_grass")
 	local c_stone = minetest.get_content_id("default:stone")
-	for x = 0, dim.x do
+	for x = 0, dim.x-1 do
 		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
-		for z = 0, dim.z do
+		for z = 0, dim.z-1 do
 			local index_z = index_x + (offset.z + z) * stride.z
 
-			local y = dim.y
+			local y = dim.y-1
 			local last_was_air = false
 			local depth = 0
 			while y >= 0 do
