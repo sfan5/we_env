@@ -133,7 +133,6 @@ local function smooth(pos1, pos2, deadzone)
 	local stride = {x=1, y=area.ystride, z=area.zstride}
 	local offset = vector.subtract(pos1, area.MinEdge)
 	local c_air = minetest.get_content_id("air")
-	local c_dirt = minetest.get_content_id("default:dirt")
 
 	-- read heightmap from data
 	local heightmap = {}
@@ -240,7 +239,7 @@ local function smooth(pos1, pos2, deadzone)
 				local y = old_height-1
 				while y >= new_height do
 					local index = index_z + (offset.y + y) * stride.y
-					if data[index] == c_dirt then data[index] = c_air end
+					if data[index] ~= c_air then data[index] = c_air end
 
 					count = count + 1
 					y = y - 1
@@ -248,10 +247,11 @@ local function smooth(pos1, pos2, deadzone)
 			elseif old_height < new_height then
 				-- need to add nodes
 				local y = old_height
+				local c_target = minetest.get_node(vector.new(index_x, old_height, index_z))
 				while y <= new_height-1 do
 					local index = index_z + (offset.y + y) * stride.y
-					if data[index] == c_air then data[index] = c_dirt end
-
+					if data[index] == c_air then data[index] = c_target end
+					
 					count = count + 1
 					y = y + 1
 				end
