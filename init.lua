@@ -240,17 +240,22 @@ local function smooth(pos1, pos2, deadzone)
 				local y = old_height-1
 				while y >= new_height do
 					local index = index_z + (offset.y + y) * stride.y
-					if data[index] == c_dirt then data[index] = c_air end
+					if data[index] ~= c_air then data[index] = c_air end
 
 					count = count + 1
 					y = y - 1
 				end
 			elseif old_height < new_height then
 				-- need to add nodes
+				local c_top = c_dirt
+				if old_height ~= 0 then
+					c_top = data[index_z + (offset.y + old_height - 1) * stride.y]
+				end
+
 				local y = old_height
 				while y <= new_height-1 do
 					local index = index_z + (offset.y + y) * stride.y
-					if data[index] == c_air then data[index] = c_dirt end
+					if data[index] == c_air then data[index] = c_top end
 
 					count = count + 1
 					y = y + 1
@@ -299,7 +304,7 @@ minetest.register_chatcommand("/populate", {
 
 minetest.register_chatcommand("/smooth", {
 	params = "",
-	description = "Smooth terrain (dirt) in current WorldEdit region",
+	description = "Smooth terrain in current WorldEdit region",
 	privs = {worldedit=true},
 	func = function(name, param)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
