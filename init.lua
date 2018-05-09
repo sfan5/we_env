@@ -247,7 +247,8 @@ local function smooth(pos1, pos2, deadzone)
 			elseif old_height < new_height then
 				-- need to add nodes
 				local y = old_height
-				local old_height_index = index_z + (offset.y + old_height) * stride.y
+				local old_height_index = index_z + (offset.y + old_height - 1) * stride.y
+				
 				while y <= new_height-1 do
 					local index = index_z + (offset.y + y) * stride.y
 					if data[index] == c_air then data[index] = data[old_height_index] end
