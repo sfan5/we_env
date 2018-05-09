@@ -21,7 +21,7 @@ Meaning: Add grass on top and change deeper nodes to stone.
 
 * `//smooth`
 
-Smooth terrain (`default:dirt` only) in the current selection.
+Smooth terrain in the current selection. When adding nodes, the type of the top-most node in the column is used.
 This uses an exponentially weighted moving average (EWMA) and should be ran 1 or 2 times to produce good results.
 
 * `//smoothbrush`

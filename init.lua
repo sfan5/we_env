@@ -299,7 +299,7 @@ minetest.register_chatcommand("/populate", {
 
 minetest.register_chatcommand("/smooth", {
 	params = "",
-	description = "Smooth terrain (dirt) in current WorldEdit region",
+	description = "Smooth terrain in current WorldEdit region",
 	privs = {worldedit=true},
 	func = function(name, param)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
