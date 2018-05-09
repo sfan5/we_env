@@ -247,10 +247,10 @@ local function smooth(pos1, pos2, deadzone)
 			elseif old_height < new_height then
 				-- need to add nodes
 				local y = old_height
-				local c_target = minetest.get_node(vector.new(index_x, old_height, index_z))
+				local old_height_index = index_z + (offset.y + old_height) * stride.y
 				while y <= new_height-1 do
 					local index = index_z + (offset.y + y) * stride.y
-					if data[index] == c_air then data[index] = c_target end
+					if data[index] == c_air then data[index] = data[old_height_index] end
 					
 					count = count + 1
 					y = y + 1
