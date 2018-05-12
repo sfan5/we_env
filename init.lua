@@ -108,7 +108,7 @@ local function populate(pos1, pos2)
 	return count
 end
 
-local function ores(pos1, pos2, y, try)
+local function ores(pos1, pos2, pretend_y, try)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
 	local dim = vector.add(vector.subtract(pos2, pos1), 1)
 
@@ -130,11 +130,11 @@ local function ores(pos1, pos2, y, try)
 	-- create a second manip
 	local voff = vector.new(0, 0, 0)
 	voff.x = area.MinEdge.x - math.random(-512, 512)*16
-	voff.y = area.MinEdge.y - math.floor(y/16)*16 -- ensure same alignment(!)
+	voff.y = area.MinEdge.y - math.floor(pretend_y/16)*16 -- ensure same alignment(!)
 	voff.z = area.MinEdge.z - math.random(-512, 512)*16
 	local manip2 = VoxelManip(vector.subtract(area.MinEdge, voff), vector.subtract(area.MaxEdge, voff))
 
-	-- generate ores inside that
+	-- copy data & generate ores inside that
 	local data2 = manip2:get_data()
 	for i = 1, area:getVolume() do
 		data2[i] = data[i]
@@ -144,7 +144,7 @@ local function ores(pos1, pos2, y, try)
 	local tmp1, tmp2 = manip2:get_emerged_area()
 	minetest.generate_ores(manip2, tmp1, tmp2) -- nothing works if you omit the last two params
 
-	-- copy the changes we want
+	-- apply the changes we want
 	local count = 0
 	manip2:get_data(data2)
 	for x = 0, dim.x-1 do
@@ -164,7 +164,7 @@ local function ores(pos1, pos2, y, try)
 	-- looks like we hit some biome that didn't have ores
 	try = try or 1
 	if count == 0 and try < 4 then
-		return ores(pos1, pos2, y, try + 1) -- try again
+		return ores(pos1, pos2, pretend_y, try + 1) -- try again
 	end
 
 	mh.finish(manip, data)
