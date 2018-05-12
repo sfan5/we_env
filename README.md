@@ -19,6 +19,11 @@ Unlike the usual "punch to cause fall" this works en masse.
 Convert terrain (`default:dirt` only) in current selection to look like "real" terrain.
 Meaning: Add grass on top and change deeper nodes to stone.
 
+* `//ores [y]`
+
+Let the map generator generate ores in the selected region, this works with whatever ores mods have registered.
+The optional argument specifies which height is used for deciding the ores to generate and defaults to sea level (0).
+
 * `//smooth`
 
 Smooth terrain in the current selection. When adding nodes, the type of the top-most node in the column is used.
