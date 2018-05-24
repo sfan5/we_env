@@ -108,6 +108,69 @@ local function populate(pos1, pos2)
 	return count
 end
 
+local function ores(pos1, pos2, pretend_y, try)
+	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
+	local dim = vector.add(vector.subtract(pos2, pos1), 1)
+
+	local manip, area = mh.init(pos1, pos2)
+	local data = manip:get_data()
+
+	local stride = {x=1, y=area.ystride, z=area.zstride}
+	local offset = vector.subtract(pos1, area.MinEdge)
+
+	-- find out which ores we want
+	local disallow_oretypes = {"sheet", "blob", "stratum"}
+	local oreids = {}
+	for _, def in pairs(minetest.registered_ores) do
+		if table.indexof(disallow_oretypes, def.ore_type) == -1 then
+			oreids[#oreids + 1] = minetest.get_content_id(def.ore)
+		end
+	end
+
+	-- create a second manip
+	local voff = vector.new(0, 0, 0)
+	voff.x = area.MinEdge.x - math.random(-512, 512)*16
+	voff.y = area.MinEdge.y - math.floor(pretend_y/16)*16 -- ensure same alignment(!)
+	voff.z = area.MinEdge.z - math.random(-512, 512)*16
+	local manip2 = VoxelManip(vector.subtract(area.MinEdge, voff), vector.subtract(area.MaxEdge, voff))
+
+	-- copy data & generate ores inside that
+	local data2 = manip2:get_data()
+	for i = 1, area:getVolume() do
+		data2[i] = data[i]
+	end
+	manip2:set_data(data2)
+
+	local tmp1, tmp2 = manip2:get_emerged_area()
+	minetest.generate_ores(manip2, tmp1, tmp2) -- nothing works if you omit the last two params
+
+	-- apply the changes we want
+	local count = 0
+	manip2:get_data(data2)
+	for x = 0, dim.x-1 do
+		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
+		for y = 0, dim.y-1 do
+			local index_y = index_x + (offset.y + y) * stride.y
+			for z = 0, dim.z-1 do
+				local index_z = index_y + (offset.z + z) * stride.z
+				if table.indexof(oreids, data2[index_z]) ~= -1 then
+					data[index_z] = data2[index_z]
+					count = count + 1
+				end
+			end
+		end
+	end
+
+	-- looks like we hit some biome that didn't have ores
+	try = try or 1
+	if count == 0 and try < 4 then
+		return ores(pos1, pos2, pretend_y, try + 1) -- try again
+	end
+
+	mh.finish(manip, data)
+	return count
+end
+
 local print2d = function(name, w, h, max, index) -- for debugging
 	local s = "##" .. name .. "\n" .. w .. "," .. h .. ":"
 	for y = 0, h-1 do
@@ -247,6 +310,11 @@ local function smooth(pos1, pos2, deadzone)
 				end
 			elseif old_height < new_height then
 				-- need to add nodes
+				local c_top = c_dirt
+				if old_height ~= 0 then
+					c_top = data[index_z + (offset.y + old_height - 1) * stride.y]
+				end
+
 				local y = old_height
 				local c_old_height
 				if oldheight ~= 0 then
@@ -257,8 +325,7 @@ local function smooth(pos1, pos2, deadzone)
 				
 				while y <= new_height-1 do
 					local index = index_z + (offset.y + y) * stride.y
-					if data[index] == c_air then data[index] = c_old_height end
-					
+					if data[index] == c_air then data[index] = c_top end
 					count = count + 1
 					y = y + 1
 				end
@@ -300,6 +367,22 @@ minetest.register_chatcommand("/populate", {
 			return nil
 		end
 		local count = populate(pos1, pos2)
+		worldedit.player_notify(name, count .. " nodes updated")
+	end,
+})
+
+minetest.register_chatcommand("/ores", {
+	params = "",
+	description = "Generate ores in current WorldEdit region",
+	privs = {worldedit=true},
+	func = function(name, param)
+		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
+		if pos1 == nil or pos2 == nil then
+			worldedit.player_notify(name, "no region selected")
+			return nil
+		end
+		local depth = param ~= "" and tonumber(param) or 0
+		local count = ores(pos1, pos2, depth)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
