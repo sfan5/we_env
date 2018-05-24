@@ -316,10 +316,16 @@ local function smooth(pos1, pos2, deadzone)
 				end
 
 				local y = old_height
+				local c_old_height
+				if oldheight ~= 0 then
+					c_old_height = data[index_z + (offset.y + old_height - 1) * stride.y]
+				else
+					c_old_height = c_dirt
+				end
+				
 				while y <= new_height-1 do
 					local index = index_z + (offset.y + y) * stride.y
 					if data[index] == c_air then data[index] = c_top end
-
 					count = count + 1
 					y = y + 1
 				end
