@@ -27,7 +27,7 @@ The optional argument specifies which height is used for deciding the ores to ge
 * `//smooth [<iterations>]`
 
 Smooth terrain in the current selection. When adding nodes, the type of the top-most node in the column is used.
-This uses an exponentially weighted moving average (EWMA) and should be ran 1 or 2 times to produce good results.
+This uses an exponentially weighted moving average (EWMA) and should be ran with 1 or 2 iteration to produce good results. Defaults to 1 iteration.
 
 * `//smoothbrush`
 
