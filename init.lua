@@ -198,32 +198,32 @@ local function smooth(pos1, pos2, deadzone, iterations)
 	local c_air = minetest.get_content_id("air")
 	local c_dirt = minetest.get_content_id("default:dirt")
 	
+	-- read heightmap from data
+	local heightmap = {}
+	local hstride = {x=1, z=dim.x}
+	for x = 0, dim.x-1 do
+		for z = 0, dim.z-1 do
+			heightmap[x + (z * hstride.z) + 1] = 0
+		end
+	end
+	for x = 0, dim.x-1 do
+		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
+		for z = 0, dim.z-1 do
+			local index_z = index_x + (offset.z + z) * stride.z
+
+			local y = dim.y-1
+			while y >= 0 do
+				if data[index_z + (offset.y + y) * stride.y] ~= c_air then
+					heightmap[x + (z * hstride.z) + 1] = y + 1
+					break
+				end
+				y = y - 1
+			end
+		end
+	end
+	
 	local count = 0
 	for i = 1,iterations do
-		-- read heightmap from data
-		local heightmap = {}
-		local hstride = {x=1, z=dim.x}
-		for x = 0, dim.x-1 do
-			for z = 0, dim.z-1 do
-				heightmap[x + (z * hstride.z) + 1] = 0
-			end
-		end
-		for x = 0, dim.x-1 do
-			local index_x = offset.x + x + 1 -- +1 for 1-based indexing
-			for z = 0, dim.z-1 do
-				local index_z = index_x + (offset.z + z) * stride.z
-
-				local y = dim.y-1
-				while y >= 0 do
-					if data[index_z + (offset.y + y) * stride.y] ~= c_air then
-						heightmap[x + (z * hstride.z) + 1] = y + 1
-						break
-					end
-					y = y - 1
-				end
-			end
-		end
-
 		-- calculate EWMA for each x/z slice
 		local slice_x, slice_z = {}, {}
 		for x = 0, dim.x-1 do -- x+
