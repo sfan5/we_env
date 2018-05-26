@@ -197,7 +197,7 @@ local function smooth(pos1, pos2, deadzone, iterations)
 	local offset = vector.subtract(pos1, area.MinEdge)
 	local c_air = minetest.get_content_id("air")
 	local c_dirt = minetest.get_content_id("default:dirt")
-	
+
 	-- read heightmap from data
 	local heightmap = {}
 	local hstride = {x=1, z=dim.x}
@@ -268,62 +268,62 @@ local function smooth(pos1, pos2, deadzone, iterations)
 				res[x+1] = (res[x+1] + last) / 2
 			end
 		end
+	end
 
-		--[[print2d("heightmap", dim.x, dim.z, dim.y, function(x, z)
-			return heightmap[x + (z * hstride.z) + 1]
-		end)
-		print2d("ewma_x", dim.x, dim.z, dim.y, function(x, z)
-			return slice_x[x+1][z+1]
-		end)
-		print2d("ewma_z", dim.x, dim.z, dim.y, function(x, z)
-			return slice_z[z+1][x+1]
-		end)--]]
+	--[[print2d("heightmap", dim.x, dim.z, dim.y, function(x, z)
+		return heightmap[x + (z * hstride.z) + 1]
+	end)
+	print2d("ewma_x", dim.x, dim.z, dim.y, function(x, z)
+		return slice_x[x+1][z+1]
+	end)
+	print2d("ewma_z", dim.x, dim.z, dim.y, function(x, z)
+		return slice_z[z+1][x+1]
+	end)--]]
 
-		-- adjust actual heights based on results
-		for x = 0, dim.x-1 do
-			local index_x = offset.x + x + 1 -- +1 for 1-based indexing
-			for z = 0, dim.z-1 do
-				local index_z = index_x + (offset.z + z) * stride.z
+	-- adjust actual heights based on results
+	for x = 0, dim.x-1 do
+		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
+		for z = 0, dim.z-1 do
+			local index_z = index_x + (offset.z + z) * stride.z
 
-				local noop = false
-				if x < deadzone.x or x > dim.x-1 - deadzone.x then noop = true end
-				if z < deadzone.z or z > dim.z-1 - deadzone.z then noop = true end
+			local noop = false
+			if x < deadzone.x or x > dim.x-1 - deadzone.x then noop = true end
+			if z < deadzone.z or z > dim.z-1 - deadzone.z then noop = true end
 
-				local old_height = heightmap[x + (z * hstride.z) + 1]
-				local new_height = math.floor(
-					old_height * WEIGHT.orig +
-					slice_x[x+1][z+1] * WEIGHT.x +
-					slice_z[z+1][x+1] * WEIGHT.z +
-					0.5
-				)
+			local old_height = heightmap[x + (z * hstride.z) + 1]
+			local new_height = math.floor(
+				old_height * WEIGHT.orig +
+				slice_x[x+1][z+1] * WEIGHT.x +
+				slice_z[z+1][x+1] * WEIGHT.z +
+				0.5
+			)
 
-				if noop then
-					-- do nothing (deadzone)
-				elseif old_height > new_height then
-					-- need to delete nodes
-					local y = old_height-1
-					while y >= new_height do
-						local index = index_z + (offset.y + y) * stride.y
-						if data[index] ~= c_air then data[index] = c_air end
+			if noop then
+				-- do nothing (deadzone)
+			elseif old_height > new_height then
+				-- need to delete nodes
+				local y = old_height-1
+				while y >= new_height do
+					local index = index_z + (offset.y + y) * stride.y
+					if data[index] ~= c_air then data[index] = c_air end
 
-						count = count + 1
-						y = y - 1
-					end
-				elseif old_height < new_height then
-					-- need to add nodes
-					local c_top = c_dirt
-					if old_height ~= 0 then
-						c_top = data[index_z + (offset.y + old_height - 1) * stride.y]
-					end
+					count = count + 1
+					y = y - 1
+				end
+			elseif old_height < new_height then
+				-- need to add nodes
+				local c_top = c_dirt
+				if old_height ~= 0 then
+					c_top = data[index_z + (offset.y + old_height - 1) * stride.y]
+				end
 
-					local y = old_height
-					while y <= new_height-1 do
-						local index = index_z + (offset.y + y) * stride.y
-						if data[index] == c_air then data[index] = c_top end
+				local y = old_height
+				while y <= new_height-1 do
+					local index = index_z + (offset.y + y) * stride.y
+					if data[index] == c_air then data[index] = c_top end
 
-						count = count + 1
-						y = y + 1
-					end
+					count = count + 1
+					y = y + 1
 				end
 			end
 		end
