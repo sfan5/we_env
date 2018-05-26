@@ -185,7 +185,7 @@ end
 
 local EWMA_alpha = 0.45
 local WEIGHT = {orig=0.2, x=0.4, z=0.4}
-local function smooth(pos1, pos2, deadzone)
+local function smooth(pos1, pos2, deadzone, iterations)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
 	local dim = vector.add(vector.subtract(pos2, pos1), 1)
 	if dim.x < 2 or dim.y < 2 or dim.z < 2 then return 0 end
@@ -221,49 +221,52 @@ local function smooth(pos1, pos2, deadzone)
 			end
 		end
 	end
-
-	-- calculate EWMA for each x/z slice
-	local slice_x, slice_z = {}, {}
-	for x = 0, dim.x-1 do -- x+
-		local res = {}
-		local last = heightmap[x + 1]
-		res[1] = last
-		for z = 1, dim.z-1 do
-			local h = heightmap[x + (z * hstride.z) + 1]
-			last = EWMA_alpha * h + (1 - EWMA_alpha) * last
-			res[z+1] = last
+	
+	local count = 0
+	for i = 1,iterations do
+		-- calculate EWMA for each x/z slice
+		local slice_x, slice_z = {}, {}
+		for x = 0, dim.x-1 do -- x+
+			local res = {}
+			local last = heightmap[x + 1]
+			res[1] = last
+			for z = 1, dim.z-1 do
+				local h = heightmap[x + (z * hstride.z) + 1]
+				last = EWMA_alpha * h + (1 - EWMA_alpha) * last
+				res[z+1] = last
+			end
+			slice_x[x+1] = res
 		end
-		slice_x[x+1] = res
-	end
-	for x = 0, dim.x-1 do -- x- & averaging
-		local res = slice_x[x+1]
-		local last = heightmap[x + ((dim.z-1) * hstride.z) + 1]
-		res[dim.z] = (res[dim.z] + last) / 2
-		for z = dim.z-2, 0, -1 do
-			local h = heightmap[x + (z * hstride.z) + 1]
-			last = EWMA_alpha * h + (1 - EWMA_alpha) * last
-			res[z+1] = (res[z+1] + last) / 2
+		for x = 0, dim.x-1 do -- x- & averaging
+			local res = slice_x[x+1]
+			local last = heightmap[x + ((dim.z-1) * hstride.z) + 1]
+			res[dim.z] = (res[dim.z] + last) / 2
+			for z = dim.z-2, 0, -1 do
+				local h = heightmap[x + (z * hstride.z) + 1]
+				last = EWMA_alpha * h + (1 - EWMA_alpha) * last
+				res[z+1] = (res[z+1] + last) / 2
+			end
 		end
-	end
-	for z = 0, dim.z-1 do -- z+
-		local res = {}
-		local last = heightmap[(z * hstride.z) + 1]
-		res[1] = last
-		for x = 1, dim.x-1 do
-			local h = heightmap[x + (z * hstride.z) + 1]
-			last = EWMA_alpha * h + (1 - EWMA_alpha) * last
-			res[x+1] = last
+		for z = 0, dim.z-1 do -- z+
+			local res = {}
+			local last = heightmap[(z * hstride.z) + 1]
+			res[1] = last
+			for x = 1, dim.x-1 do
+				local h = heightmap[x + (z * hstride.z) + 1]
+				last = EWMA_alpha * h + (1 - EWMA_alpha) * last
+				res[x+1] = last
+			end
+			slice_z[z+1] = res
 		end
-		slice_z[z+1] = res
-	end
-	for z = 0, dim.z-1 do -- z- & averaging
-		local res = slice_z[z+1]
-		local last = heightmap[dim.x-1 + (z * hstride.z) + 1]
-		res[dim.x] = (res[dim.x] + last) / 2
-		for x = dim.x-2, 0, -1 do
-			local h = heightmap[x + (z * hstride.z) + 1]
-			last = EWMA_alpha * h + (1 - EWMA_alpha) * last
-			res[x+1] = (res[x+1] + last) / 2
+		for z = 0, dim.z-1 do -- z- & averaging
+			local res = slice_z[z+1]
+			local last = heightmap[dim.x-1 + (z * hstride.z) + 1]
+			res[dim.x] = (res[dim.x] + last) / 2
+			for x = dim.x-2, 0, -1 do
+				local h = heightmap[x + (z * hstride.z) + 1]
+				last = EWMA_alpha * h + (1 - EWMA_alpha) * last
+				res[x+1] = (res[x+1] + last) / 2
+			end
 		end
 	end
 
@@ -278,7 +281,6 @@ local function smooth(pos1, pos2, deadzone)
 	end)--]]
 
 	-- adjust actual heights based on results
-	local count = 0
 	for x = 0, dim.x-1 do
 		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
 		for z = 0, dim.z-1 do
@@ -382,8 +384,8 @@ minetest.register_chatcommand("/ores", {
 })
 
 minetest.register_chatcommand("/smooth", {
-	params = "",
-	description = "Smooth terrain in current WorldEdit region",
+	params = "[<iterations>]",
+	description = "Smooth terrain in current WorldEdit region. Optionally takes an iterations parameter, which allows many smoothing passes to be done at once.",
 	privs = {worldedit=true},
 	func = function(name, param)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
@@ -391,7 +393,8 @@ minetest.register_chatcommand("/smooth", {
 			worldedit.player_notify(name, "no region selected")
 			return nil
 		end
-		local count = smooth(pos1, pos2, {x=0, z=0})
+		local iteration_count = tonumber(param) or 1
+		local count = smooth(pos1, pos2, {x=0, z=0}, iteration_count)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
