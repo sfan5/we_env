@@ -185,43 +185,7 @@ end
 
 local EWMA_alpha = 0.45
 local WEIGHT = {orig=0.2, x=0.4, z=0.4}
-local function smooth(pos1, pos2, deadzone)
-	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
-	local dim = vector.add(vector.subtract(pos2, pos1), 1)
-	if dim.x < 2 or dim.y < 2 or dim.z < 2 then return 0 end
-
-	local manip, area = mh.init(pos1, pos2)
-	local data = manip:get_data()
-
-	local stride = {x=1, y=area.ystride, z=area.zstride}
-	local offset = vector.subtract(pos1, area.MinEdge)
-	local c_air = minetest.get_content_id("air")
-	local c_dirt = minetest.get_content_id("default:dirt")
-
-	-- read heightmap from data
-	local heightmap = {}
-	local hstride = {x=1, z=dim.x}
-	for x = 0, dim.x-1 do
-		for z = 0, dim.z-1 do
-			heightmap[x + (z * hstride.z) + 1] = 0
-		end
-	end
-	for x = 0, dim.x-1 do
-		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
-		for z = 0, dim.z-1 do
-			local index_z = index_x + (offset.z + z) * stride.z
-
-			local y = dim.y-1
-			while y >= 0 do
-				if data[index_z + (offset.y + y) * stride.y] ~= c_air then
-					heightmap[x + (z * hstride.z) + 1] = y + 1
-					break
-				end
-				y = y - 1
-			end
-		end
-	end
-
+local ewma = function(heightmap, hstride, dim, out)
 	-- calculate EWMA for each x/z slice
 	local slice_x, slice_z = {}, {}
 	for x = 0, dim.x-1 do -- x+
@@ -277,7 +241,65 @@ local function smooth(pos1, pos2, deadzone)
 		return slice_z[z+1][x+1]
 	end)--]]
 
-	-- adjust actual heights based on results
+	-- calculate actual heights
+	for x = 0, dim.x-1 do
+		for z = 0, dim.z-1 do
+			local hindex = x + (z * hstride.z) + 1
+
+			local old_height = heightmap[hindex]
+			local new_height = math.floor(
+				old_height * WEIGHT.orig +
+				slice_x[x+1][z+1] * WEIGHT.x +
+				slice_z[z+1][x+1] * WEIGHT.z +
+				0.5
+			)
+			out[hindex] = new_height
+		end
+	end
+end
+
+local function smooth(pos1, pos2, deadzone)
+	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
+	local dim = vector.add(vector.subtract(pos2, pos1), 1)
+	if dim.x < 2 or dim.y < 2 or dim.z < 2 then return 0 end
+
+	local manip, area = mh.init(pos1, pos2)
+	local data = manip:get_data()
+
+	local stride = {x=1, y=area.ystride, z=area.zstride}
+	local offset = vector.subtract(pos1, area.MinEdge)
+	local c_air = minetest.get_content_id("air")
+	local c_dirt = minetest.get_content_id("default:dirt")
+
+	-- read heightmap from data
+	local heightmap = {}
+	local hstride = {x=1, z=dim.x}
+	for x = 0, dim.x-1 do
+		for z = 0, dim.z-1 do
+			heightmap[x + (z * hstride.z) + 1] = 0
+		end
+	end
+	for x = 0, dim.x-1 do
+		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
+		for z = 0, dim.z-1 do
+			local index_z = index_x + (offset.z + z) * stride.z
+
+			local y = dim.y-1
+			while y >= 0 do
+				if data[index_z + (offset.y + y) * stride.y] ~= c_air then
+					heightmap[x + (z * hstride.z) + 1] = y + 1
+					break
+				end
+				y = y - 1
+			end
+		end
+	end
+
+	-- apply algorithm
+	local heightmap_new = {}
+	ewma(heightmap, hstride, dim, heightmap_new)
+
+	-- adjust actual heights
 	local count = 0
 	for x = 0, dim.x-1 do
 		local index_x = offset.x + x + 1 -- +1 for 1-based indexing
@@ -288,13 +310,9 @@ local function smooth(pos1, pos2, deadzone)
 			if x < deadzone.x or x > dim.x-1 - deadzone.x then noop = true end
 			if z < deadzone.z or z > dim.z-1 - deadzone.z then noop = true end
 
-			local old_height = heightmap[x + (z * hstride.z) + 1]
-			local new_height = math.floor(
-				old_height * WEIGHT.orig +
-				slice_x[x+1][z+1] * WEIGHT.x +
-				slice_z[z+1][x+1] * WEIGHT.z +
-				0.5
-			)
+			local hindex = x + (z * hstride.z) + 1
+			local old_height = heightmap[hindex]
+			local new_height = heightmap_new[hindex]
 
 			if noop then
 				-- do nothing (deadzone)
