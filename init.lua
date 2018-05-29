@@ -258,7 +258,7 @@ local ewma = function(heightmap, hstride, dim, out)
 	end
 end
 
-local function smooth(pos1, pos2, deadzone)
+local function smooth(pos1, pos2, deadzone, iterations)
 	local pos1, pos2 = worldedit.sort_pos(pos1, pos2)
 	local dim = vector.add(vector.subtract(pos2, pos1), 1)
 	if dim.x < 2 or dim.y < 2 or dim.z < 2 then return 0 end
@@ -298,6 +298,9 @@ local function smooth(pos1, pos2, deadzone)
 	-- apply algorithm
 	local heightmap_new = {}
 	ewma(heightmap, hstride, dim, heightmap_new)
+	for i = 2, iterations do
+		ewma(heightmap_new, hstride, dim, heightmap_new)
+	end
 
 	-- adjust actual heights
 	local count = 0
@@ -393,14 +396,14 @@ minetest.register_chatcommand("/ores", {
 			worldedit.player_notify(name, "no region selected")
 			return nil
 		end
-		local depth = param ~= "" and tonumber(param) or 0
+		local depth = tonumber(param) or 0
 		local count = ores(pos1, pos2, depth)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
 
 minetest.register_chatcommand("/smooth", {
-	params = "",
+	params = "[iterations]",
 	description = "Smooth terrain in current WorldEdit region",
 	privs = {worldedit=true},
 	func = function(name, param)
@@ -409,7 +412,8 @@ minetest.register_chatcommand("/smooth", {
 			worldedit.player_notify(name, "no region selected")
 			return nil
 		end
-		local count = smooth(pos1, pos2, {x=0, z=0})
+		local iterations = tonumber(param) or 1
+		local count = smooth(pos1, pos2, {x=0, z=0}, iterations)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
@@ -477,7 +481,7 @@ minetest.register_chatcommand("/" .. internal_name, {
 			end
 		end
 
-		smooth(pos1, pos2, {x=dead, z=dead})
+		smooth(pos1, pos2, {x=dead, z=dead}, 1)
 		--[[worldedit.pos1[name] = pos1
 		worldedit.pos2[name] = pos2
 		worldedit.mark_region(name)--]]
