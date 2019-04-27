@@ -392,7 +392,7 @@ minetest.register_chatcommand("/ores", {
 	privs = {worldedit=true},
 	func = function(name, param)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
-		if pos1 == nil or pos2 == nil then
+		if pos1 == nil or pos2 == nil or tonumber(param) > 32766 or tonumber(param) < -32766 then
 			worldedit.player_notify(name, "no region selected")
 			return nil
 		end
