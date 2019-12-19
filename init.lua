@@ -1,5 +1,10 @@
 local mh = worldedit.manip_helpers
 
+assert(worldedit.register_command,
+	"Your WorldEdit installation is out of date, "..
+	"please update to the latest version from git"..
+	"to run we_env.")
+
 ---------------------------------------------
 -- manipulations
 ---------------------------------------------
@@ -356,63 +361,61 @@ end
 -- chat commands
 ---------------------------------------------
 
-minetest.register_chatcommand("/fall", {
+local check_region = function(name)
+	return worldedit.volume(worldedit.pos1[name], worldedit.pos2[name])
+end
+
+worldedit.register_command("fall", {
 	params = "",
-	description = "Apply gravity to all falling nodes in current WorldEdit region",
+	description = "Apply gravity to all falling nodes in selected region",
 	privs = {worldedit=true},
-	func = function(name, param)
+	require_pos = 2,
+	nodes_needed = check_region,
+	func = function(name)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
-		if pos1 == nil or pos2 == nil then
-			worldedit.player_notify(name, "no region selected")
-			return nil
-		end
 		local count = fall(pos1, pos2)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
 
-minetest.register_chatcommand("/populate", {
+worldedit.register_command("populate", {
 	params = "",
-	description = "Populate dirt in current WorldEdit region",
+	description = "Populate dirt in selected region",
 	privs = {worldedit=true},
-	func = function(name, param)
+	require_pos = 2,
+	nodes_needed = check_region,
+	func = function(name)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
-		if pos1 == nil or pos2 == nil then
-			worldedit.player_notify(name, "no region selected")
-			return nil
-		end
 		local count = populate(pos1, pos2)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
 
-minetest.register_chatcommand("/ores", {
+worldedit.register_command("ores", {
 	params = "",
-	description = "Generate ores in current WorldEdit region",
+	description = "Generate ores in selected region",
 	privs = {worldedit=true},
-	func = function(name, param)
+	require_pos = 2,
+	nodes_needed = check_region,
+	func = function(name)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
-		if pos1 == nil or pos2 == nil then
-			worldedit.player_notify(name, "no region selected")
-			return nil
-		end
 		local depth = tonumber(param) or 0
 		local count = ores(pos1, pos2, depth)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
 })
 
-minetest.register_chatcommand("/smooth", {
+worldedit.register_command("smooth", {
 	params = "[iterations]",
-	description = "Smooth terrain in current WorldEdit region",
+	description = "Smooth terrain in selected region",
 	privs = {worldedit=true},
-	func = function(name, param)
+	require_pos = 2,
+	nodes_needed = check_region,
+	parse = function(param)
+		return true, tonumber(param) or 1
+	end,
+	func = function(name, iterations)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
-		if pos1 == nil or pos2 == nil then
-			worldedit.player_notify(name, "no region selected")
-			return nil
-		end
-		local iterations = tonumber(param) or 1
 		local count = smooth(pos1, pos2, {x=0, z=0}, iterations)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
@@ -432,12 +435,12 @@ if minetest.registered_items["worldedit:brush"] == nil then
 end
 
 local internal_name = "_smooth_brush_internal_do_not_use"
-minetest.register_chatcommand("/" .. internal_name, {
+worldedit.register_command(internal_name, {
 	params = "",
 	privs = {worldedit=true},
-	func = function(name, param)
+	require_pos = 1,
+	func = function(name)
 		local pos = worldedit.pos1[name]
-		assert(pos ~= nil)
 
 		-- Only modify an 10*10 area but take heights from 14*14 into consideration
 		local dist, dead = 10, 4
@@ -488,11 +491,11 @@ minetest.register_chatcommand("/" .. internal_name, {
 	end,
 })
 
-minetest.register_chatcommand("/smoothbrush", {
+worldedit.register_command("smoothbrush", {
 	privs = {worldedit=true},
 	params = "",
 	description = "Assign smoothing action to WorldEdit brush item",
-	func = function(name, param)
+	func = function(name)
 		local itemstack = minetest.get_player_by_name(name):get_wielded_item()
 		if itemstack == nil or itemstack:get_name() ~= "worldedit:brush" then
 			worldedit.player_notify(name, "Not holding brush item.")
