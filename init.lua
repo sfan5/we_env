@@ -128,7 +128,7 @@ local function ores(pos1, pos2, pretend_y, try)
 	local oreids = {}
 	for _, def in pairs(minetest.registered_ores) do
 		if table.indexof(disallow_oretypes, def.ore_type) == -1 then
-			oreids[#oreids + 1] = minetest.get_content_id(def.ore)
+			oreids[minetest.get_content_id(def.ore)] = true
 		end
 	end
 
@@ -158,8 +158,9 @@ local function ores(pos1, pos2, pretend_y, try)
 			local index_y = index_x + (offset.y + y) * stride.y
 			for z = 0, dim.z-1 do
 				local index_z = index_y + (offset.z + z) * stride.z
-				if table.indexof(oreids, data2[index_z]) ~= -1 then
-					data[index_z] = data2[index_z]
+				local cid = data2[index_z]
+				if oreids[cid] then
+					data[index_z] = cid
 					count = count + 1
 				end
 			end
@@ -397,9 +398,11 @@ worldedit.register_command("ores", {
 	privs = {worldedit=true},
 	require_pos = 2,
 	nodes_needed = check_region,
-	func = function(name)
+	parse = function(param)
+		return true, tonumber(param) or 0
+	end,
+	func = function(name, depth)
 		local pos1, pos2 = worldedit.pos1[name], worldedit.pos2[name]
-		local depth = tonumber(param) or 0
 		local count = ores(pos1, pos2, depth)
 		worldedit.player_notify(name, count .. " nodes updated")
 	end,
@@ -487,7 +490,7 @@ worldedit.register_command(internal_name, {
 		smooth(pos1, pos2, {x=dead, z=dead}, 1)
 		--[[worldedit.pos1[name] = pos1
 		worldedit.pos2[name] = pos2
-		worldedit.mark_region(name)--]]
+		worldedit.marker_update(name)--]]
 	end,
 })
 
