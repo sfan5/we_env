@@ -369,6 +369,7 @@ end
 worldedit.register_command("fall", {
 	params = "",
 	description = "Apply gravity to all falling nodes in selected region",
+	category = "Terrain",
 	privs = {worldedit=true},
 	require_pos = 2,
 	nodes_needed = check_region,
@@ -382,6 +383,7 @@ worldedit.register_command("fall", {
 worldedit.register_command("populate", {
 	params = "",
 	description = "Populate dirt in selected region",
+	category = "Terrain",
 	privs = {worldedit=true},
 	require_pos = 2,
 	nodes_needed = check_region,
@@ -395,6 +397,7 @@ worldedit.register_command("populate", {
 worldedit.register_command("ores", {
 	params = "",
 	description = "Generate ores in selected region",
+	category = "Terrain",
 	privs = {worldedit=true},
 	require_pos = 2,
 	nodes_needed = check_region,
@@ -411,6 +414,7 @@ worldedit.register_command("ores", {
 worldedit.register_command("smooth", {
 	params = "[iterations]",
 	description = "Smooth terrain in selected region",
+	category = "Terrain",
 	privs = {worldedit=true},
 	require_pos = 2,
 	nodes_needed = check_region,
@@ -499,10 +503,11 @@ worldedit.register_command("smoothbrush", {
 	params = "",
 	description = "Assign smoothing action to WorldEdit brush item",
 	func = function(name)
-		local itemstack = minetest.get_player_by_name(name):get_wielded_item()
+		local player = minetest.get_player_by_name(name)
+		if not player then return end
+		local itemstack = player:get_wielded_item()
 		if itemstack == nil or itemstack:get_name() ~= "worldedit:brush" then
-			worldedit.player_notify(name, "Not holding brush item.")
-			return
+			return false, "Not holding brush item."
 		end
 
 		local meta = itemstack:get_meta()
@@ -510,7 +515,7 @@ worldedit.register_command("smoothbrush", {
 		meta:set_string("params", "")
 		meta:set_string("description",
 			minetest.registered_tools["worldedit:brush"].description .. ": Smooth")
-		worldedit.player_notify(name, "Smoothing action assigned to brush.")
-		minetest.get_player_by_name(name):set_wielded_item(itemstack)
+		player:set_wielded_item(itemstack)
+		return true, "Smoothing action assigned to brush."
 	end,
 })
