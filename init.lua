@@ -120,7 +120,7 @@ local function ores(pos1, pos2, pretend_y, try)
 	local manip, area = mh.init(pos1, pos2)
 	local data = manip:get_data()
 
-	local stride = {x=1, y=area.ystride, z=area.zstride}
+	local stride = vector.new(1, area.ystride, area.zstride)
 	local offset = vector.subtract(pos1, area.MinEdge)
 
 	-- find out which ores we want
@@ -131,23 +131,35 @@ local function ores(pos1, pos2, pretend_y, try)
 			oreids[minetest.get_content_id(def.ore)] = true
 		end
 	end
+	if next(oreids) == nil then
+		core.log("warning", "we_env: no ids found for ores()")
+		return 0
+	end
 
-	-- create a second manip
+	-- create a second manip with the same size
 	local voff = vector.new(0, 0, 0)
-	voff.x = area.MinEdge.x - math.random(-512, 512)*16
-	voff.y = area.MinEdge.y - math.floor(pretend_y/16)*16 -- ensure same alignment(!)
-	voff.z = area.MinEdge.z - math.random(-512, 512)*16
-	local manip2 = VoxelManip(vector.subtract(area.MinEdge, voff), vector.subtract(area.MaxEdge, voff))
+	voff.x = area.MinEdge.x - math.random(-512, 512)*core.MAP_BLOCKSIZE
+	voff.y = area.MinEdge.y - math.floor(pretend_y/core.MAP_BLOCKSIZE)*core.MAP_BLOCKSIZE -- ensure same alignment(!)
+	voff.z = area.MinEdge.z - math.random(-512, 512)*core.MAP_BLOCKSIZE
+	local manip2 = VoxelManip()
+	if manip2.initialize ~= nil then
+		manip2:initialize(vector.subtract(area.MinEdge, voff), vector.subtract(area.MaxEdge, voff))
+	else
+		manip2:read_from_map(vector.subtract(area.MinEdge, voff), vector.subtract(area.MaxEdge, voff))
+	end
 
 	-- copy data & generate ores inside that
 	local data2 = manip2:get_data()
+	assert(#data2 == area:getVolume())
 	for i = 1, area:getVolume() do
 		data2[i] = data[i]
 	end
 	manip2:set_data(data2)
 
-	local tmp1, tmp2 = manip2:get_emerged_area()
-	minetest.generate_ores(manip2, tmp1, tmp2) -- nothing works if you omit the last two params
+	do
+		local tmp1, tmp2 = manip2:get_emerged_area()
+		core.generate_ores(manip2, tmp1, tmp2) -- nothing works if you omit the last two params
+	end
 
 	-- apply the changes we want
 	local count = 0
@@ -167,12 +179,16 @@ local function ores(pos1, pos2, pretend_y, try)
 		end
 	end
 
-	-- looks like we hit some biome that didn't have ores
 	try = try or 1
+	-- looks like we hit some biome that didn't have ores
 	if count == 0 and try < 4 then
-		return ores(pos1, pos2, pretend_y, try + 1) -- try again
+		core.log("info", "we_env: re-trying ores()")
+		return ores(pos1, pos2, pretend_y, try + 1)
 	end
 
+	if manip2.close ~= nil then
+		manip2:close()
+	end
 	mh.finish(manip, data)
 	return count
 end
